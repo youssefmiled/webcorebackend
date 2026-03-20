@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.models.user import User
-from app.extensions import db, mail
+from app.extensions import db, mail, limiter
 from flask_jwt_extended import create_access_token
 from flask_mail import Message
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import re
 
@@ -46,6 +46,7 @@ def send_email(subject, recipient, html):
     mail.send(msg)
 
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("10 per minute")
 def register():
     data = request.get_json()
     name = data.get("name")
@@ -67,6 +68,7 @@ def register():
     return jsonify({"message": "User created"}), 201
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("5 per minute")   # ✅ brute force protection
 def login():
     data = request.get_json()
     email = data.get("email")
@@ -79,7 +81,7 @@ def login():
     if user.is_two_fa_enabled:
         code = generate_code()
         user.two_fa_code = code
-        user.two_fa_code_expiration = datetime.utcnow() + timedelta(minutes=5)
+        user.two_fa_code_expiration = datetime.now(timezone.utc) + timedelta(minutes=5)
         db.session.commit()
 
         html = email_template("Your 2FA Code", "Use this code to complete login", code)
@@ -99,8 +101,8 @@ def login():
         "email": user.email
     }), 200
 
-# ✅ EL FIX — ma3adch y7tej token, w yraje3 name + email
 @auth_bp.route("/2fa", methods=["POST"])
+@limiter.limit("5 per minute")
 def verify_2fa():
     data = request.get_json()
     email = data.get("email")
@@ -111,7 +113,7 @@ def verify_2fa():
         return jsonify({"message": "User not found"}), 404
     if user.two_fa_code != code:
         return jsonify({"message": "Invalid code"}), 401
-    if datetime.utcnow() > user.two_fa_code_expiration:
+    if datetime.now(timezone.utc) > user.two_fa_code_expiration.replace(tzinfo=timezone.utc):
         return jsonify({"message": "Code expired"}), 401
 
     user.two_fa_code = None
@@ -122,11 +124,12 @@ def verify_2fa():
     return jsonify({
         "access_token": token,
         "role": user.role,
-        "name": user.name,      # ✅ zidha
-        "email": user.email     # ✅ zidha
+        "name": user.name,
+        "email": user.email
     }), 200
 
 @auth_bp.route("/resend-2fa", methods=["POST"])
+@limiter.limit("3 per minute")
 def resend_2fa():
     data = request.get_json()
     email = data.get("email")
@@ -137,7 +140,7 @@ def resend_2fa():
 
     code = generate_code()
     user.two_fa_code = code
-    user.two_fa_code_expiration = datetime.utcnow() + timedelta(minutes=5)
+    user.two_fa_code_expiration = datetime.now(timezone.utc) + timedelta(minutes=5)
     db.session.commit()
 
     html = email_template("New 2FA Code", "Use this new code", code)
@@ -146,6 +149,7 @@ def resend_2fa():
     return jsonify({"message": "New code sent"}), 200
 
 @auth_bp.route("/forgot-password", methods=["POST"])
+@limiter.limit("3 per minute")   # ✅ protection
 def forgot_password():
     data = request.get_json()
     email = data.get("email")
@@ -156,7 +160,7 @@ def forgot_password():
 
     code = generate_code()
     user.reset_code = code
-    user.reset_code_expiration = datetime.utcnow() + timedelta(minutes=10)
+    user.reset_code_expiration = datetime.now(timezone.utc) + timedelta(minutes=10)
     db.session.commit()
 
     html = email_template("Reset Password", "Use this code to reset your password", code)
@@ -165,6 +169,7 @@ def forgot_password():
     return jsonify({"message": "Reset code sent"}), 200
 
 @auth_bp.route("/reset-password", methods=["POST"])
+@limiter.limit("5 per minute")
 def reset_password():
     data = request.get_json()
     email = data.get("email")
@@ -176,7 +181,7 @@ def reset_password():
         return jsonify({"message": "User not found"}), 404
     if user.reset_code != code:
         return jsonify({"message": "Invalid reset code"}), 400
-    if datetime.utcnow() > user.reset_code_expiration:
+    if datetime.now(timezone.utc) > user.reset_code_expiration.replace(tzinfo=timezone.utc):
         return jsonify({"message": "Code expired"}), 400
     if not re.match(password_regex, password):
         return jsonify({"message": "Password not strong enough"}), 400

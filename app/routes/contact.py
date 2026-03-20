@@ -1,31 +1,18 @@
-# backend/app/routes/contact.py
-
 from flask import Blueprint, request, jsonify, current_app
 from flask_mail import Message
 from app.extensions import db, mail
 from app.models.contact import Contact
 import re
+import os
 
 contact_bp = Blueprint("contact", __name__)
 
-# -------------------------
-# Validation email simple
-# -------------------------
 def is_valid_email(email):
-    """Validation simple d'email avec regex."""
     regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(regex, email) is not None
 
-# -------------------------
-# Route pour envoyer message
-# -------------------------
 @contact_bp.route("/send-message", methods=["POST"])
 def send_message():
-    """
-    Reçoit les données du formulaire (JSON ou formulaire HTML),
-    sauvegarde en base et envoie un email.
-    """
-    # Récupération des données (supporte JSON et formulaire)
     if request.is_json:
         data = request.get_json()
     else:
@@ -35,19 +22,15 @@ def send_message():
     email = data.get("email")
     message = data.get("message")
 
-    # Validation des champs requis
     if not name or not email or not message:
         return jsonify({"error": "Tous les champs sont requis"}), 400
-
     if not is_valid_email(email):
         return jsonify({"error": "Adresse email invalide"}), 400
 
-    # 1️⃣ Sauvegarde en base de données
     new_contact = Contact(name=name, email=email, message=message)
     db.session.add(new_contact)
     db.session.commit()
 
-    # 2️⃣ Envoi de l'email avec rendu HTML amélioré
     try:
         html_content = f"""
         <html>
@@ -65,16 +48,14 @@ def send_message():
         </body>
         </html>
         """
-
         msg = Message(
             subject=f"Message de {name} via le formulaire de contact",
-            recipients=["youssefmiled18@gmail.com"],  # Destinataire fixe
+            recipients=[os.getenv("CONTACT_EMAIL")],   # ✅ من .env
             reply_to=email,
             html=html_content
         )
         mail.send(msg)
     except Exception as e:
-        # En production, logger l'erreur
         current_app.logger.error(f"Erreur envoi email : {e}")
         return jsonify({
             "error": "Le message a été sauvegardé mais l'email n'a pas pu être envoyé."

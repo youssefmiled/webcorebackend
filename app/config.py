@@ -9,3 +9,6 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret")
+
+    # Flask-Limiter — in-memory في dev، Redis في production
+    RATELIMIT_STORAGE_URI = os.getenv("REDIS_URL", "memory://")
