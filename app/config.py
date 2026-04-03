@@ -1,5 +1,5 @@
-# backend/app/config.py
 import os
+from datetime import timedelta
 
 class Config:
     # Connexion PostgreSQL
@@ -9,6 +9,10 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret")
+
+    # JWT Token expiry
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)   # 24h en dev
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)   # 30 jours pour le refresh
 
     # Flask-Limiter — in-memory في dev، Redis في production
     RATELIMIT_STORAGE_URI = os.getenv("REDIS_URL", "memory://")

@@ -18,20 +18,24 @@ def email_template(title, message, code):
     return f"""
     <html>
     <body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial">
-    <table width="100%"><tr><td align="center">
-    <table width="500" style="background:white;border-radius:12px;padding:30px;margin-top:40px">
-    <tr><td align="center">
-    <h2>{title}</h2>
-    <p>{message}</p>
-    <div style="margin:30px 0;font-size:32px;letter-spacing:6px;font-weight:bold;color:#2563eb;">
-    {code}
-    </div>
-    <p style="font-size:13px">This code will expire in a few minutes.</p>
-    <hr>
-    <p style="font-size:12px">© 2026 WebCore Platform</p>
-    </td></tr>
+    <table width="100%"> …
+        <td align="center">
+            <table width="500" style="background:white;border-radius:12px;padding:30px;margin-top:40px">
+                <tr><td align="center">
+                    <h2>{title}</h2>
+                    <p>{message}</p>
+                    <div style="margin:30px 0;font-size:32px;letter-spacing:6px;font-weight:bold;color:#2563eb;">
+                        {code}
+                    </div>
+                    <p style="font-size:13px">This code will expire in a few minutes.</p>
+                    <hr>
+                    <p style="font-size:12px">© 2026 WebCore Platform</p>
+                </td>
+            </tr>
+            </table>
+        </td>
+    </tr>
     </table>
-    </td></tr></table>
     </body>
     </html>
     """
@@ -68,7 +72,7 @@ def register():
     return jsonify({"message": "User created"}), 201
 
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("5 per minute")   # ✅ brute force protection
+@limiter.limit("5 per minute")
 def login():
     data = request.get_json()
     email = data.get("email")
@@ -93,7 +97,8 @@ def login():
             "role": user.role
         }), 200
 
-    access_token = create_access_token(identity=user.id)
+    # ✅ Conversion de l'ID utilisateur en string pour le token JWT
+    access_token = create_access_token(identity=str(user.id))
     return jsonify({
         "access_token": access_token,
         "role": user.role,
@@ -120,7 +125,8 @@ def verify_2fa():
     user.two_fa_code_expiration = None
     db.session.commit()
 
-    token = create_access_token(identity=user.id)
+    # ✅ Conversion de l'ID utilisateur en string pour le token JWT
+    token = create_access_token(identity=str(user.id))
     return jsonify({
         "access_token": token,
         "role": user.role,
@@ -149,7 +155,7 @@ def resend_2fa():
     return jsonify({"message": "New code sent"}), 200
 
 @auth_bp.route("/forgot-password", methods=["POST"])
-@limiter.limit("3 per minute")   # ✅ protection
+@limiter.limit("3 per minute")
 def forgot_password():
     data = request.get_json()
     email = data.get("email")

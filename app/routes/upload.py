@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 upload_bp = Blueprint("upload", __name__)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "svg"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 2MB
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
