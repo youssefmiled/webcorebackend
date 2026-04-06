@@ -92,7 +92,7 @@ def create_app():
     from .routes.pages import pages_bp
     from .routes.blocks import blocks_bp
     from .routes.media import media_bp              # ← NOUVEAU
-
+    from .routes.profile import profile_bp
     app.register_blueprint(auth_bp,    url_prefix="/auth")
     app.register_blueprint(contact_bp, url_prefix="/contact")
     app.register_blueprint(website_bp)
@@ -100,7 +100,7 @@ def create_app():
     app.register_blueprint(pages_bp)
     app.register_blueprint(blocks_bp)
     app.register_blueprint(media_bp)               # ← NOUVEAU
-
+    app.register_blueprint(profile_bp, url_prefix="/api/profile")
     # ── Debug routes ──────────────────────────────────────────────────────────
     if os.getenv("FLASK_ENV") != "production":
         print("\n📋 Routes disponibles :")
